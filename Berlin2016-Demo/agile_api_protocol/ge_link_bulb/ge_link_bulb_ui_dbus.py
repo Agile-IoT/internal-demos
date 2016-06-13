@@ -9,65 +9,59 @@
 #       Bridge. Functions allow to turn on, of, toggle  #
 #       dim or blink the bulb                           #
 #    Author: David Palomares <d.palomares@libelium.com> #
-#    Version: 1.0                                       #
+#    Version: 2.0                                       #
 #    Date: May 2016                                     #
 #########################################################
 
 # --- Imports -----------
 import sys
 import signal
-import serial
 import time
 import RPi.GPIO as GPIO
 import tkinter as tk
+import dbus
 # -----------------------
 
 
 # --- Variables ---------
 # GE Link Bulb
-GE_LINK_BULB_MAC = [0xF0, 0xFE, 0x6B, 0x00, 0x14, 0x00, 0xBF, 0x26]
+GE_LINK_BULB_MAC = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF] # TODO: Your bulb's MAC here
 #GPIOs
 PINPOWER = 16 # Must be HIGH for shield to work
-# Serial
-ser = serial.Serial()
-device = ""
-baudrates = [0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 
-             9600, 19200, 38400, 57600, 115200, 230400, 460800, 576000, 921600]
-bytesizes = [serial.FIVEBITS, serial.SIXBITS, 
-             serial.SEVENBITS, serial.EIGHTBITS]
-parities =  [serial.PARITY_NONE, serial.PARITY_EVEN, serial.PARITY_ODD,
-             serial.PARITY_MARK, serial.PARITY_SPACE]
-stopbitss = [serial.STOPBITS_ONE, serial.STOPBITS_ONE_POINT_FIVE, 
-             serial.STOPBITS_TWO]
 if GPIO.RPI_INFO["TYPE"] == "Pi 3 Model B":
    defDevice = "/dev/ttyS0"
 else:
    defDevice = "/dev/ttyAMA0"
-defBaudrate = 9600
-defBytesize = serial.EIGHTBITS
-defParity = serial.PARITY_NONE
-defStopbits = serial.STOPBITS_ONE
-defTimeout = 0.5
-# Frame = start delimiter, length (2), frame type,
-#    frame id, 64-bit dest (8), 16-bit dest (2), 
-#    source endpoint, dest endpoint, cluster ID (2), 
-#    profile ID (2), broadcast radius, options, 
-#    payload (N), checksum
-START_DELIMITER = [0x7E]
-TYPE_EXPLICIT = [0x11]
-FRAME_ID = [0x04]
-DST64 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF] # Broadcast
-DST16 = [0xFF, 0xFE]
-SRC_ENDP = [0x00]
-DST_ENDP = [0x01]
+# DBus
+BUS_NAME = "iot.agile.Protocol"
+OBJ_PATH = "/iot/agile/Protocol"
+SOCKET0 = "socket0"
+SOCKET1 = "socket1"
+XBEE_ZB = "XBee_ZigBee"
+zb = None
+# ZigBee
+setup_params = {
+   "baudrate": 9600,
+   "apiMode2": False,
+   "NJ": "FF",
+   "ZS": "02",
+   "EE": "01"
+}
+zb_explicit_command = {
+   "api_command": "tx_explicit",
+   "frame_id": [0x04],
+   "dest_addr_long": [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF],
+   "dest_addr": [0xFF, 0xFE],
+   "src_endpoint": [0x00],
+   "dest_endpoint": [0x01],
+   "cluster": [0x00, 0x00],
+   "profile": [0x01, 0x04],
+   "broadcast_radius": [0x00],
+   "options": [0x00],
+   "data": [0x00] 
+}
 CLUSTER_A = [0x00, 0x06]
 CLUSTER_B = [0x00, 0x08]
-PROFILE = [0x01, 0x04]
-BROAD_RAD = [0x00]
-OPTIONS = [0x00]
-dst_64_addr = GE_LINK_BULB_MAC
-dst_16_addr = DST16
-# Payloads
 DATA_ON = [0x01, 0x00, 0x01, 0x00, 0x10]
 DATA_OFF = [0x01, 0x00, 0x00, 0x00, 0x10]
 DATA_TOGGLE = [0x01, 0x00, 0x02, 0x00, 0x10]
@@ -77,88 +71,35 @@ DATA_DIM_PARAM = 3
 
 
 # --- Functions ---------
-def initXbee(port, baudrate = defBaudrate, bytesize = defBytesize, 
-          parity = defParity, stopbits = defStopbits, timeout = defTimeout): 
-      """
-      Opens a serial port with the desired settings.
-      """
-      ser.port = port
-      if baudrate in baudrates:
-         ser.baudrate = baudrate
-      else:
-         ser.baudrate = defBaudrate
-      if bytesize in bytesizes:
-         ser.bytesyze = bytesize
-      else:
-         ser.bytesize = defBytesize
-      if parity in parities:
-         ser.parity = parity
-      else:
-         ser.bytesize = defBytesize
-      if stopbits in stopbitss:
-         ser.stopbits = stopbits
-      else:
-         ser.stopbits = defStopbits
-      if timeout >= 0:
-         ser.timeout = timeout
-      else:
-         ser.timeout = defTimeout
-      try:
-         ser.open()
-      except:
-         print("Serial exception.")
-         endProgram(-1)
-
-def makeFrame(cluster, data):
-   """
-   Creates a explicit frame with the parameters specified.
-   """
-   frame = []
-   frame.extend(START_DELIMITER) # start delimiter
-   frame.extend([0x00, 0x00])    # length
-   frame.extend(TYPE_EXPLICIT)   # frame type
-   frame.extend(FRAME_ID)        # frame ID
-   frame.extend(dst_64_addr)     # 64-bit dest
-   frame.extend(dst_16_addr)     # 16-bit dest
-   frame.extend(SRC_ENDP)        # source endpoint
-   frame.extend(DST_ENDP)        # dest endpoint
-   frame.extend(cluster)         # cluster ID
-   frame.extend(PROFILE)         # profile ID
-   frame.extend(BROAD_RAD)       # broadcast radius
-   frame.extend(OPTIONS)         # options
-   frame.extend(data)            # payload
-   length = len(frame[3:])
-   lengthH = (length >> 8) & 0xFF
-   lengthL = length & 0xFF
-   frame[1] = lengthH
-   frame[2] = lengthL
-   checksum = 0x00
-   for byte in frame[3:]:
-      checksum = checksum + byte
-   checksum = 0xFF - (checksum & 0xFF)
-   frame.append(checksum)
-   return bytes(frame)
-
 def bulb_on():
    """
    Turns the GE Link Bulb On.
    """
-   frame = makeFrame(CLUSTER_A, DATA_ON)
-   ser.write(frame)
+   tx = zb_explicit_command
+   tx["dest_addr_long"] = GE_LINK_BULB_MAC
+   tx["cluster"] = CLUSTER_A
+   tx["data"] = DATA_ON
+   response = zb.Send(tx)
 
 def bulb_off():
    """
    Turns the GE Link Bulb On.
    """
-   frame = makeFrame(CLUSTER_A, DATA_OFF)
-   ser.write(frame)
+   tx = zb_explicit_command
+   tx["dest_addr_long"] = GE_LINK_BULB_MAC
+   tx["cluster"] = CLUSTER_A
+   tx["data"] = DATA_OFF
+   response = zb.Send(tx)
    
 def bulb_toggle():
    """
    Toggles the GE Link Bulb.
    """
-   frame = makeFrame(CLUSTER_A, DATA_TOGGLE)
-   ser.write(frame)
+   tx = zb_explicit_command
+   tx["dest_addr_long"] = GE_LINK_BULB_MAC
+   tx["cluster"] = CLUSTER_A
+   tx["data"] = DATA_TOGGLE
+   response = zb.Send(tx)
    
 def bulb_dim(bright):
    """
@@ -167,8 +108,11 @@ def bulb_dim(bright):
    bright = bright & 0xFF
    data = DATA_DIM
    data[DATA_DIM_PARAM] = bright
-   frame = makeFrame(CLUSTER_B, data)
-   ser.write(frame)
+   tx = zb_explicit_command
+   tx["dest_addr_long"] = GE_LINK_BULB_MAC
+   tx["cluster"] = CLUSTER_B
+   tx["data"] = data
+   response = zb.Send(tx)
    
 def bulb_dim_call():
    """
@@ -198,6 +142,7 @@ def setup():
    """
    Sets the default parameters of the program.
    """
+   global zb
    # Signal handler (Ctrl+C exit)
    signal.signal(signal.SIGINT, signal_handler) 
    # GPIOs
@@ -205,8 +150,13 @@ def setup():
    GPIO.setwarnings(False) 
    GPIO.setup(PINPOWER, GPIO.OUT)
    GPIO.output(PINPOWER, GPIO.HIGH)
-   #TODO: Check params from args? (device, dst64, dst16, baudrate...)
-   initXbee(defDevice)
+   # DBus
+   session_bus = dbus.SessionBus()
+   objXBZB = session_bus.get_object(BUS_NAME, OBJ_PATH + "/" + XBEE_ZB + "/" + SOCKET0)
+   zb = dbus.Interface(objXBZB, dbus_interface=BUS_NAME)
+   # ZigBee
+   zb.Setup(dbus.Dictionary(setup_params, signature="sv"))
+   zb.Connect()
    
 def signal_handler(signal, frame):
    """
@@ -219,7 +169,7 @@ def endProgram(status):
    """
    Exists the program.
    """
-   ser.close()
+   zb.Disconnect()
    GPIO.output(PINPOWER, GPIO.LOW)
    GPIO.cleanup()
    sys.exit(status)

@@ -1,0 +1,3 @@
+[submodule "Berlin2016-Demo/agile-dbus-api"]
+	path = Berlin2016-Demo/agile-dbus-api
+	url = https://github.com/doitdagi/Agile-BLE.git

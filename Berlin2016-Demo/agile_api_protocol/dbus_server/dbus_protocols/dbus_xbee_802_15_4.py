@@ -6,8 +6,8 @@
 #       in the AGILE API with the implementation of the #
 #       XBee 802.15.4 protocol.                         #
 #    Author: David Palomares <d.palomares@libelium.com> #
-#    Version: 0.1                                       #
-#    Date: June 2016                                    #
+#    Version: 0.2                                       #
+#    Date: August 2016                                  #
 #########################################################
 
 # --- Imports -----------
@@ -27,6 +27,7 @@ APIMODE2 = "apiMode2"
 DEF_APIMODE2 = False
 ATCMDS = "atCmds"
 APITXCMDS = ["at", "queued_at", "remote_at", "tx_long_addr", "tx"]
+CMDWRITE = b"WR"
 # -----------------------
 
 
@@ -63,10 +64,14 @@ class XBee_802_15_4_Obj(dbP.ProtocolObj):
          raise XBee_802_15_4_Exception("Module is already connected.")
       self._serial = serial.Serial(self._getSocketDev(self._socket), self._setup[BAUDRATE])
       self._module = xbee.XBee(self._serial, escaped=self._setup[APIMODE2])
+      writeChanges = False
       for option in self._setup[ATCMDS]:
          cmd = list(option.keys())[0]
          param = list(option.values())[0]
          cmdEnc = cmd.encode("UTF-8")
+         if (cmdEnc == CMDWRITE):
+            writeChanges = True
+            break
          paramEnc = b"\x00"
          blen = (param.bit_length() + 7) // 8
          if blen != 0:
@@ -77,6 +82,11 @@ class XBee_802_15_4_Obj(dbP.ProtocolObj):
             raise XBee_802_15_4_Exception("Did not receive response from AT command")
          if rx["status"] != b"\x00":
             raise XBee_802_15_4_Exception("Wrong AT command/parameter ({}/{})".format(cmd, param))
+      if writeChanges:
+         self._module.send("at", frame_id=b"R", command=CMDWRITE)
+         rx = self._module.wait_read_frame()
+         if not rx["status"]:
+            raise XBee_802_15_4_Exception("Did not receive response from AT command")
       self._setConnected(True)
 
    @dbus.service.method(dbP.BUS_NAME, in_signature="", out_signature="")
@@ -101,7 +111,12 @@ class XBee_802_15_4_Obj(dbP.ProtocolObj):
          elif key == APIMODE2:
             self._setup[APIMODE2] = bool(args[APIMODE2])
          else:
-            self._setup[ATCMDS].append({str(key): int(args[key], 16)})
+            try:
+               param = int(args[key], 16)              
+            except ValueError:
+               param = 0x00
+            finally:
+               self._setup[ATCMDS].append({str(key): param})
          
    @dbus.service.method(dbP.BUS_NAME, in_signature="a{sv}", out_signature="")
    def Send(self, args):

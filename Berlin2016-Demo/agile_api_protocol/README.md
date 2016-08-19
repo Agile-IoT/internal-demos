@@ -30,7 +30,7 @@ Each protocol might implement the following methods:
 
 In order to run the application, some DBus libraries must be installed in the system.
 ```
-sudo apt-get install libdbus-1-dev libdbus-gelib-1-dev python3-gi
+sudo apt-get install libdbus-1-dev libdbus-glib-1-dev python3-gi
 ```
 
 The python modules required are listed in the `requirements.txt` file, and can be installed from there.

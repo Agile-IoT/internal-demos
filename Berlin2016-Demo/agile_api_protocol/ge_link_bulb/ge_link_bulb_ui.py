@@ -103,7 +103,7 @@ def endProgram(status):
    """
    Exists the program.
    """
-   zb.Disconnect()
+   bulb.Disconnect()
    sys.exit(status)
 # -----------------------
    

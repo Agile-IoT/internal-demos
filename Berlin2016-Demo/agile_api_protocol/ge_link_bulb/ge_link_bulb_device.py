@@ -93,7 +93,7 @@ class Lamp_Obj(dbD.DeviceObj):
    def __init__(self):
       super().__init__(DEVICE_NAME)
 
-   @dbus.service.method(dbD.BUS_NAME, in_signature="sa{sv}", out_signature="")
+   @dbus.service.method(dbD.IFACE_NAME, in_signature="sa{sv}", out_signature="")
    def Execute(self, op, args):
       if op == "on":
          bulb_on()

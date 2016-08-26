@@ -20,6 +20,7 @@ import dbus.service
 
 # --- Variables ---------
 BUS_NAME = "iot.agile.Device.ZB"
+IFACE_NAME = "iot.agile.Device"
 OBJ_PATH = "/iot/agile/Device/ZB"
 
 # --- Classes -----------
@@ -53,23 +54,23 @@ class DeviceObj(dbus.service.Object):
       
    # AGILE API Methods  
       
-   @dbus.service.method(BUS_NAME, in_signature="", out_signature="b")
+   @dbus.service.method(IFACE_NAME, in_signature="", out_signature="b")
    def Connected(self):
       return _getConnected()
 
-   @dbus.service.method(BUS_NAME, in_signature="", out_signature="s")
+   @dbus.service.method(IFACE_NAME, in_signature="", out_signature="s")
    def Name(self):
       return self._device_name
 
-   @dbus.service.method(BUS_NAME, in_signature="", out_signature="")
+   @dbus.service.method(IFACE_NAME, in_signature="", out_signature="")
    def Connect(self):
       raise Device_Exception(self._device_name, "Function not supported.")
 
-   @dbus.service.method(BUS_NAME, in_signature="", out_signature="")
+   @dbus.service.method(IFACE_NAME, in_signature="", out_signature="")
    def Disconnect(self):
       raise Device_Exception(self._device_name, "Function not supported.")
 
-   @dbus.service.method(BUS_NAME, in_signature="sa{sv}", out_signature="")
+   @dbus.service.method(IFACE_NAME, in_signature="sa{sv}", out_signature="")
    def Execute(self, op, args):
       raise Device_Exception(self._device_name, "Function not supported.")
 

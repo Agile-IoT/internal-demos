@@ -19,8 +19,8 @@ import RPi.GPIO as GPIO
 
 
 # --- Variables ---------
-BUS_NAME = "iot.agile.Protocol"
-OBJ_PATH = "/iot/agile/Protocol"
+BUS_NAME = "iot.agile.Protocol.ZB"
+OBJ_PATH = "/iot/agile/Protocol/ZB"
 SOCKET0 = "socket0"
 SOCKET1 = "socket1"
 if GPIO.RPI_INFO["TYPE"] == "Pi 3 Model B":

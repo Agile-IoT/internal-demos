@@ -40,8 +40,8 @@ PINPOWER = 16 # Must be HIGH for shield to work
 #else:
 defDevice = "/dev/ttyUSB0"
 # DBus
-PROTOCOL_BUS_NAME = "iot.agile.Protocol"
-PROTOCOL_OBJ_PATH = "/iot/agile/Protocol"
+PROTOCOL_BUS_NAME = "iot.agile.Protocol.ZB"
+PROTOCOL_OBJ_PATH = "/iot/agile/Protocol/ZB"
 SOCKET0 = "socket0"
 SOCKET1 = "socket1"
 XBEE_ZB = "XBee_ZigBee"

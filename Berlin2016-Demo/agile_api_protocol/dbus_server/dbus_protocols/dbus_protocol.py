@@ -14,7 +14,6 @@
 # --- Imports -----------
 import dbus
 import dbus.service
-import RPi.GPIO as GPIO
 # -----------------------
 
 
@@ -23,12 +22,18 @@ BUS_NAME = "iot.agile.Protocol.ZB"
 OBJ_PATH = "/iot/agile/Protocol/ZB"
 SOCKET0 = "socket0"
 SOCKET1 = "socket1"
-if GPIO.RPI_INFO["TYPE"] == "Pi 3 Model B":
-   SOCKET0DEV = "/dev/ttyS0"
-   SOCKET1DEV = "/dev/ttyS0"
-else:
-   SOCKET0DEV = "/dev/ttyAMA0"
-   SOCKET1DEV = "/dev/ttyAMA0"
+
+try:
+  import RPi.GPIO as GPIO
+  if GPIO.RPI_INFO["TYPE"] == "Pi 3 Model B":
+     SOCKET0DEV = "/dev/ttyS0"
+     SOCKET1DEV = "/dev/ttyS0"
+  else:
+     SOCKET0DEV = "/dev/ttyAMA0"
+     SOCKET1DEV = "/dev/ttyAMA0"
+except (ImportError, RuntimeError):
+  SOCKET0DEV = "/dev/ttyUSB0"
+  SOCKET1DEV = "/dev/ttyUSB0"
 SOCKETDEV = {SOCKET0: SOCKET0DEV, SOCKET1: SOCKET1DEV} 
 # -----------------------
 

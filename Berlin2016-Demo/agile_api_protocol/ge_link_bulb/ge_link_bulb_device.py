@@ -17,7 +17,6 @@
 import sys
 import signal
 import time
-#import RPi.GPIO as GPIO
 import tkinter as tk
 import dbus
 import dbus_device as dbD
@@ -33,12 +32,6 @@ mainloop = GLib.MainLoop()
 GE_LINK_BULB_MAC = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF] # TODO: Your bulb's MAC here
 GE_LINK_BULB_MAC = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF]
 DEVICE_NAME = "000000000000FFFF"
-#GPIOs
-PINPOWER = 16 # Must be HIGH for shield to work
-#if GPIO.RPI_INFO["TYPE"] == "Pi 3 Model B":
-#   defDevice = "/dev/ttyS0"
-#else:
-defDevice = "/dev/ttyUSB0"
 # DBus
 PROTOCOL_BUS_NAME = "iot.agile.Protocol.ZB"
 PROTOCOL_OBJ_PATH = "/iot/agile/Protocol/ZB"
